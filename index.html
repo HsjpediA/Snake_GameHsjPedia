@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HSJA Snake Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background-color: #0a192f; /* Biru Tua */
+        color: #e6f1ff; /* Putih Langit */
+        touch-action: none; /* Mencegah zoom/scroll di mobile */
+      }
+
+      .gradient-bg {
+        background: linear-gradient(135deg, #0a192f, #1e3a8a);
+      }
+
+      .card {
+        background-color: rgba(10, 25, 47, 0.85);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(45, 212, 191, 0.2);
+      }
+
+      /* Animasi untuk modal Game Over */
+      .modal-enter {
+        opacity: 0;
+        transform: scale(0.9);
+        transition: opacity 300ms ease-out, transform 300ms ease-out;
+      }
+
+      .modal-enter-active {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* Tombol kontrol sentuh */
+      .touch-control-btn {
+        width: 60px;
+        height: 60px;
+        background-color: rgba(45, 212, 191, 0.2);
+        border: 2px solid rgba(45, 212, 191, 0.5);
+        color: #5eead4;
+        transition: all 0.2s ease-in-out;
+        user-select: none; /* Mencegah seleksi teks saat disentuh */
+      }
+      .touch-control-btn:active {
+        background-color: rgba(45, 212, 191, 0.5);
+        transform: scale(0.95);
+      }
+
+      /* Kanvas game */
+      #gameCanvas {
+        background-color: #0a192f;
+        border: 2px solid #5eead4;
+      }
+
+      /* Tombol share */
+      .share-btn {
+        transition: transform 0.2s ease;
+      }
+      .share-btn:hover {
+        transform: translateY(-3px);
+      }
+      .whatsapp {
+        background-color: #25d366;
+      }
+      .twitter {
+        background-color: #1da1f2;
+      }
+      .facebook {
+        background-color: #1877f2;
+      }
+
+      /* Animasi emoji hujan */
+      @keyframes fall {
+        from {
+          transform: translateY(0vh) rotate(0deg);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(110vh) rotate(360deg);
+          opacity: 0;
+        }
+      }
+
+      .falling-emoji {
+        position: fixed; /* Posisi relatif terhadap viewport */
+        top: -10vh; /* Mulai dari atas layar */
+        font-size: 2rem;
+        pointer-events: none; /* Tidak bisa diklik */
+        z-index: 0; /* Di belakang konten utama */
+        animation: fall 5s linear forwards;
+      }
+
+      #main-container {
+        position: relative;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body class="gradient-bg flex items-center justify-center min-h-screen p-4">
+    <div id="main-container" class="w-full max-w-lg mx-auto">
+      <!-- Header -->
+      <header class="text-center mb-4">
+        <h1 id="gameTitle" class="text-4xl font-bold text-white">
+          HSJA Snake Game
+        </h1>
+        <p class="text-lg text-cyan-300 font-semibold mt-1">
+          "Think the Future"
+        </p>
+      </header>
+
+      <!-- Papan Skor -->
+      <div
+        class="card rounded-lg p-3 mb-4 flex justify-between items-center shadow-lg"
+      >
+        <h2 class="text-xl font-semibold">Skor:</h2>
+        <span id="score" class="text-2xl font-bold text-cyan-300">0</span>
+      </div>
+
+      <!-- Area Game -->
+      <div class="relative">
+        <canvas id="gameCanvas" class="rounded-lg shadow-2xl w-full"></canvas>
+
+        <!-- Modal Game Over -->
+        <div
+          id="gameOverModal"
+          class="absolute inset-0 bg-black bg-opacity-70 items-center justify-center rounded-lg hidden modal-enter"
+        >
+          <div class="card p-8 rounded-lg text-center shadow-2xl">
+            <h2 class="text-5xl font-extrabold text-red-500 mb-2">Game Over</h2>
+            <p class="text-xl">
+              Skor Akhir:
+              <span id="finalScore" class="font-bold text-yellow-300">0</span>
+            </p>
+            <p
+              id="motivationText"
+              class="text-lg text-cyan-300 mt-2 font-semibold"
+            ></p>
+            <button
+              id="restartButton"
+              class="mt-6 bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-bold py-2 px-6 rounded-lg transition duration-200"
+            >
+              Mulai Lagi
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kontrol Sentuh -->
+      <div
+        id="touchControls"
+        class="mt-6 grid grid-cols-3 grid-rows-3 gap-2 max-w-xs mx-auto"
+      >
+        <div class="col-start-2 row-start-1 flex justify-center">
+          <button
+            id="btnUp"
+            class="touch-control-btn rounded-full flex items-center justify-center"
+          >
+            <i class="fas fa-arrow-up text-2xl"></i>
+          </button>
+        </div>
+        <div class="col-start-1 row-start-2 flex justify-center">
+          <button
+            id="btnLeft"
+            class="touch-control-btn rounded-full flex items-center justify-center"
+          >
+            <i class="fas fa-arrow-left text-2xl"></i>
+          </button>
+        </div>
+        <div class="col-start-3 row-start-2 flex justify-center">
+          <button
+            id="btnRight"
+            class="touch-control-btn rounded-full flex items-center justify-center"
+          >
+            <i class="fas fa-arrow-right text-2xl"></i>
+          </button>
+        </div>
+        <div class="col-start-2 row-start-3 flex justify-center">
+          <button
+            id="btnDown"
+            class="touch-control-btn rounded-full flex items-center justify-center"
+          >
+            <i class="fas fa-arrow-down text-2xl"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pustaka Tone.js untuk efek suara -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // === KONFIGURASI & VARIABEL DASAR ===
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const gameOverModal = document.getElementById("gameOverModal");
+        const finalScoreElement = document.getElementById("finalScore");
+        const motivationTextElement = document.getElementById("motivationText");
+        const restartButton = document.getElementById("restartButton");
+
+        // Ukuran grid. Semakin besar, semakin mudah.
+        const gridSize = 20;
+        let canvasSize;
+        const gameSpeed = 200; // Kecepatan game (ms). Semakin besar, semakin lambat.
+
+        // Variabel state game
+        let snake = [{ x: 10, y: 10 }];
+        let apple = {};
+        let direction = { x: 0, y: 0 };
+        let score = 0;
+        let isGameOver = false;
+        let gameLoop;
+        let changingDirection = false;
+        let level = 1; // Variabel untuk melacak level
+
+        // Variabel untuk animasi warna ular
+        let hue = 200; // Mulai dari warna biru/cyan
+
+        // === PENGATURAN EFEK SUARA ===
+        const eatSound = new Tone.Synth().toDestination();
+        const gameOverSound = new Tone.Synth().toDestination();
+
+        // Mengatur suara agar tidak terlalu keras
+        eatSound.volume.value = -10;
+        gameOverSound.volume.value = -5;
+
+        // === FUNGSI UTAMA GAME ===
+
+        function setupCanvas() {
+          const containerWidth = canvas.parentElement.clientWidth;
+          canvasSize = Math.floor(containerWidth / gridSize) * gridSize;
+          canvas.width = canvasSize;
+          canvas.height = canvasSize;
+        }
+
+        function startGame() {
+          // Reset semua state
+          isGameOver = false;
+          snake = [
+            {
+              x: Math.floor(canvas.width / gridSize / 2),
+              y: Math.floor(canvas.height / gridSize / 2),
+            },
+          ];
+          direction = { x: 0, y: 0 };
+          score = 0;
+          level = 1; // Reset level ke 1
+          hue = 200;
+          scoreElement.textContent = "0";
+
+          // Sembunyikan modal game over
+          gameOverModal.classList.add("hidden");
+          gameOverModal.classList.remove("modal-enter-active");
+
+          // Buat apel pertama
+          generateApple();
+
+          // Mulai game loop
+          if (gameLoop) clearInterval(gameLoop);
+          gameLoop = setInterval(updateGame, gameSpeed);
+        }
+
+        function updateGame() {
+          if (isGameOver) return;
+
+          changingDirection = false;
+
+          // Update posisi ular
+          const head = {
+            x: snake[0].x + direction.x,
+            y: snake[0].y + direction.y,
+          };
+          snake.unshift(head);
+
+          // Cek jika makan apel
+          if (head.x === apple.x && head.y === apple.y) {
+            score += 100;
+            scoreElement.textContent = score;
+            eatSound.triggerAttackRelease("G5", "8n"); // Mainkan suara makan
+            generateApple();
+            checkMotivation();
+          } else {
+            snake.pop(); // Hapus ekor jika tidak makan
+          }
+
+          // Cek tabrakan
+          if (checkCollision(head)) {
+            endGame();
+            return;
+          }
+
+          // Update warna ular untuk animasi
+          hue = (hue + 1) % 360;
+
+          // Gambar ulang semuanya
+          draw();
+        }
+
+        function draw() {
+          // Latar belakang
+          ctx.fillStyle = "#0a192f"; // Biru Tua
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Gambar apel (emoji)
+          ctx.font = `${gridSize * 0.8}px serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(
+            "🍎",
+            apple.x * gridSize + gridSize / 2,
+            apple.y * gridSize + gridSize / 2
+          );
+
+          // Gambar ular agar terlihat menyambung dan lonjong
+          // 1. Gambar garis tebal yang menyambungkan tiap segmen
+          for (let i = 0; i < snake.length - 1; i++) {
+            const segment = snake[i];
+            const nextSegment = snake[i + 1];
+
+            // Ambil warna dari segmen berikutnya agar warna terlihat mengalir dari ekor ke kepala
+            const segmentHue =
+              (hue + (i + 1) * 5 + Math.floor(snake.length / 5) * 30) % 360;
+            ctx.strokeStyle = `hsl(${segmentHue}, 90%, 60%)`;
+            ctx.lineWidth = gridSize - 4; // Atur ketebalan garis, sedikit lebih kecil dari segmen
+            ctx.lineCap = "round"; // Buat ujung garis membulat
+
+            ctx.beginPath();
+            ctx.moveTo(
+              segment.x * gridSize + gridSize / 2,
+              segment.y * gridSize + gridSize / 2
+            );
+            ctx.lineTo(
+              nextSegment.x * gridSize + gridSize / 2,
+              nextSegment.y * gridSize + gridSize / 2
+            );
+            ctx.stroke();
+          }
+
+          // 2. Gambar lingkaran di setiap titik segmen untuk menghaluskan sambungan
+          snake.forEach((segment, index) => {
+            // Warna berubah berdasarkan panjang dan animasi
+            const segmentHue =
+              (hue + index * 5 + Math.floor(snake.length / 5) * 30) % 360;
+            ctx.fillStyle = `hsl(${segmentHue}, 90%, 60%)`;
+
+            ctx.beginPath();
+            ctx.arc(
+              segment.x * gridSize + gridSize / 2, // center x
+              segment.y * gridSize + gridSize / 2, // center y
+              gridSize / 2 - 2, // radius lingkaran
+              0,
+              2 * Math.PI
+            );
+            ctx.fill();
+          });
+
+          // 3. Gambar mata di kepala ular untuk membuatnya terlihat seperti wajah
+          const head = snake[0];
+          if (head) {
+            const headCenterX = head.x * gridSize + gridSize / 2;
+            const headCenterY = head.y * gridSize + gridSize / 2; // FIX: Perhitungan posisi Y mata diperbaiki
+            const eyeRadius = gridSize / 7;
+            const eyeOffset = gridSize / 4;
+
+            let eye1X, eye1Y, eye2X, eye2Y;
+
+            // Atur posisi mata berdasarkan arah gerak (vertikal atau horizontal)
+            if (direction.x === 0) {
+              // Bergerak vertikal atau diam
+              eye1X = headCenterX - eyeOffset;
+              eye1Y = headCenterY;
+              eye2X = headCenterX + eyeOffset;
+              eye2Y = headCenterY;
+            } else {
+              // Bergerak horizontal
+              eye1X = headCenterX;
+              eye1Y = headCenterY - eyeOffset;
+              eye2X = headCenterX;
+              eye2Y = headCenterY + eyeOffset;
+            }
+
+            // Gambar bagian putih mata
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(eye1X, eye1Y, eyeRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(eye2X, eye2Y, eyeRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Gambar pupil (bagian hitam mata)
+            ctx.fillStyle = "#0a192f";
+            ctx.beginPath();
+            ctx.arc(eye1X, eye1Y, eyeRadius / 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(eye2X, eye2Y, eyeRadius / 2, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+        }
+
+        function generateApple() {
+          let newApplePosition;
+          do {
+            newApplePosition = {
+              x: Math.floor(Math.random() * (canvas.width / gridSize)),
+              y: Math.floor(Math.random() * (canvas.height / gridSize)),
+            };
+          } while (isPositionOnSnake(newApplePosition)); // Pastikan apel tidak muncul di atas ular
+          apple = newApplePosition;
+        }
+
+        function checkCollision(head) {
+          // Tabrakan dengan dinding
+          if (
+            head.x < 0 ||
+            head.x >= canvas.width / gridSize ||
+            head.y < 0 ||
+            head.y >= canvas.height / gridSize
+          ) {
+            return true;
+          }
+          // Tabrakan dengan diri sendiri
+          for (let i = 1; i < snake.length; i++) {
+            if (head.x === snake[i].x && head.y === snake[i].y) {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        function isPositionOnSnake(position) {
+          return snake.some(
+            (segment) => segment.x === position.x && segment.y === position.y
+          );
+        }
+
+        function checkMotivation() {
+          // Logika baru untuk sistem level
+          const newLevel = Math.floor(score / 1000) + 1;
+          if (newLevel > level) {
+            level = newLevel;
+            showTemporaryMessage(`Kamu Sekarang LEVEL ${level}`);
+
+            // Tambahkan efek hujan emoji jika level kelipatan 2
+            if (level % 2 === 0) {
+              createEmojiRain();
+            }
+          }
+        }
+
+        function createEmojiRain() {
+          const emojis = ["🫡", "👾", "😍"];
+          const rainCount = 30; // Jumlah emoji yang jatuh
+
+          for (let i = 0; i < rainCount; i++) {
+            const emojiEl = document.createElement("div");
+
+            // Pilih emoji random
+            emojiEl.textContent =
+              emojis[Math.floor(Math.random() * emojis.length)];
+            emojiEl.className = "falling-emoji";
+
+            // Atur properti random untuk membuat efek lebih alami
+            emojiEl.style.left = `${Math.random() * 100}vw`;
+            emojiEl.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
+            emojiEl.style.animationDuration = `${Math.random() * 3 + 4}s`; // Durasi jatuh 4-7 detik
+            emojiEl.style.animationDelay = `${Math.random() * 3}s`; // Mulai jatuh di waktu berbeda
+
+            document.body.appendChild(emojiEl);
+
+            // Hapus elemen setelah animasi selesai agar tidak membebani halaman
+            emojiEl.addEventListener("animationend", () => {
+              emojiEl.remove();
+            });
+          }
+        }
+
+        function showTemporaryMessage(text) {
+          const msgElement = document.createElement("div");
+          msgElement.textContent = text;
+          msgElement.className =
+            "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-cyan-500 text-black font-bold p-4 rounded-lg text-2xl shadow-xl transition-opacity duration-500";
+          canvas.parentElement.appendChild(msgElement);
+
+          setTimeout(() => {
+            msgElement.classList.add("opacity-0");
+            setTimeout(() => msgElement.remove(), 500);
+          }, 2000);
+        }
+
+        function endGame() {
+          isGameOver = true;
+          clearInterval(gameLoop);
+          gameOverSound.triggerAttackRelease("C3", "0.5s"); // Mainkan suara kalah
+
+          // Tampilkan modal
+          finalScoreElement.textContent = score;
+          let motivation = "Coba lagi, ya!";
+          if (score >= 100000) motivation = "HORMAT KING!";
+          else if (score >= 10000) motivation = "Lanjutkan Manusia Kuat!";
+          else if (score >= 1000) motivation = "Semangat!";
+          motivationTextElement.textContent = motivation;
+
+          gameOverModal.classList.remove("hidden");
+          // Timeout kecil untuk memastikan transisi CSS berjalan
+          setTimeout(() => {
+            gameOverModal.classList.add("modal-enter-active");
+          }, 10);
+        }
+
+        // === KONTROL INPUT ===
+
+        function changeDirection(event) {
+          if (changingDirection) return;
+
+          const keyPressed = event.key;
+          const goingUp = direction.y === -1;
+          const goingDown = direction.y === 1;
+          const goingLeft = direction.x === -1;
+          const goingRight = direction.x === 1;
+
+          if (
+            direction.x === 0 &&
+            direction.y === 0 &&
+            (keyPressed === "ArrowUp" ||
+              keyPressed === "ArrowDown" ||
+              keyPressed === "ArrowLeft" ||
+              keyPressed === "ArrowRight")
+          ) {
+            // Start the game on first key press
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(updateGame, gameSpeed);
+          }
+
+          if ((keyPressed === "ArrowUp" || keyPressed === "w") && !goingDown) {
+            direction = { x: 0, y: -1 };
+          }
+          if ((keyPressed === "ArrowDown" || keyPressed === "s") && !goingUp) {
+            direction = { x: 0, y: 1 };
+          }
+          if (
+            (keyPressed === "ArrowLeft" || keyPressed === "a") &&
+            !goingRight
+          ) {
+            direction = { x: -1, y: 0 };
+          }
+          if (
+            (keyPressed === "ArrowRight" || keyPressed === "d") &&
+            !goingLeft
+          ) {
+            direction = { x: 1, y: 0 };
+          }
+          changingDirection = true;
+        }
+
+        // Kontrol sentuh
+        const controls = {
+          btnUp: { x: 0, y: -1, opposite: { x: 0, y: 1 } },
+          btnDown: { x: 0, y: 1, opposite: { x: 0, y: -1 } },
+          btnLeft: { x: -1, y: 0, opposite: { x: 1, y: 0 } },
+          btnRight: { x: 1, y: 0, opposite: { x: -1, y: 0 } },
+        };
+
+        for (const [id, dir] of Object.entries(controls)) {
+          document.getElementById(id).addEventListener("click", () => {
+            // Cegah ular berbalik arah
+            if (
+              direction.x !== dir.opposite.x ||
+              direction.y !== dir.opposite.y
+            ) {
+              // Mulai game jika belum bergerak
+              if (direction.x === 0 && direction.y === 0) {
+                if (gameLoop) clearInterval(gameLoop);
+                gameLoop = setInterval(updateGame, gameSpeed);
+              }
+              direction = { x: dir.x, y: dir.y };
+            }
+          });
+        }
+
+        // === FITUR TAMBAHAN ===
+
+        // Judul bisa diubah dengan klik
+        document
+          .getElementById("gameTitle")
+          .addEventListener("click", function () {
+            const newTitle = prompt(
+              "Masukkan judul game baru:",
+              this.textContent
+            );
+            if (newTitle) {
+              this.textContent = newTitle;
+            }
+          });
+
+        // === EVENT LISTENERS ===
+        window.addEventListener("resize", () => {
+          setupCanvas();
+          draw(); // Gambar ulang saat resize
+        });
+        document.addEventListener("keydown", changeDirection);
+        restartButton.addEventListener("click", startGame);
+
+        // === INISIALISASI GAME ===
+        setupCanvas();
+        startGame();
+        // Gambar frame pertama sebelum loop dimulai
+        draw();
+      });
+    </script>
+  </body>
+</html>
